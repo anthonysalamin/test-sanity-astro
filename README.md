@@ -5,7 +5,8 @@ Webflow → Astro + Sanity migration. Monorepo:
 ```
 ├── studio/     # Sanity Studio (project nk9wf9nw, dataset production)
 ├── web/        # Astro front end (fully static, reads Sanity at build time)
-├── migration/  # tokens.ndjson — Webflow CMS export converted for Sanity import
+├── csv/        # Source CMS exports from Webflow (one CSV per collection)
+├── migration/  # csv-to-ndjson.mjs converter + NDJSON files for Sanity import
 └── netlify.toml
 ```
 
@@ -72,7 +73,7 @@ The deployed Studio is the customer-facing editor — like Webflow's Editor, but
 2. Invite the customer at [sanity.io/manage](https://www.sanity.io/manage) → project **TEST SANITY** → **Members** → Invite, role **Editor** (can create/edit/publish content; cannot touch settings, tokens, or billing). Free tier: up to 20 members.
 3. Their workflow: open the Studio URL → log in → add/edit tokens → **Publish** → webhook rebuilds Netlify → live site updates in ~1 min.
 
-To add fields later: edit `studio/schemaTypes/token.ts`, run `npx sanity deploy` again — editors see the new fields immediately. Bulk imports still work anytime via `migration/csv-to-ndjson.mjs` + `npx sanity dataset import`.
+To add fields later: edit `studio/schemaTypes/token.ts`, run `npx sanity deploy` again — editors see the new fields immediately. Bulk imports still work anytime: drop the CSV in `csv/`, then `node migration/csv-to-ndjson.mjs csv/<file>.csv token > migration/<name>.ndjson` and `npx sanity dataset import` from `studio/`.
 
 ## Recurring cost
 

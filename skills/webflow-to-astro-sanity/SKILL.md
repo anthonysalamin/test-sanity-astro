@@ -27,7 +27,8 @@ Converts a Webflow site export (+ CMS CSV exports) into a monorepo: Sanity Studi
 root/
 ├── studio/       # Sanity Studio
 ├── web/          # Astro app
-├── migration/    # NDJSON files for content import
+├── csv/          # Source CMS exports from Webflow (one CSV per collection)
+├── migration/    # csv-to-ndjson.mjs converter + NDJSON files for content import
 ├── netlify.toml
 ├── .gitignore    # node_modules, .env*, .DS_Store
 └── README.md
@@ -89,7 +90,7 @@ Ignore Webflow's Collection ID / Locale ID / Archived / Draft columns; use Item 
 Use the bundled converter (`scripts/csv-to-ndjson.mjs`, dependency-free Node) rather than converting by hand:
 
 ```bash
-node scripts/csv-to-ndjson.mjs <webflow-export.csv> <sanityType> > migration/<collection>.ndjson
+node scripts/csv-to-ndjson.mjs csv/<webflow-export>.csv <sanityType> > migration/<collection>.ndjson
 ```
 
 It parses the Webflow CSV (RFC 4180, quoted fields), derives `_id` from the Item ID column, maps Name/Slug to the built-in fields, drops Webflow metadata columns, skips Archived/Draft rows, and exports any custom column as a camelCased string field (warning on stderr that rich text, images, and references need manual mapping). Output format, one JSON object per line:
