@@ -1,0 +1,19 @@
+---
+import Layout from '../../layouts/Layout.astro'
+import {getTokens} from '../../lib/sanity'
+
+export async function getStaticPaths() {
+  const tokens = await getTokens()
+  return tokens.map((token) => ({
+    params: {slug: token.slug.current},
+    props: {token},
+  }))
+}
+
+const {token} = Astro.props
+---
+
+<Layout title={token.name}>
+  <h1>{token.name}</h1>
+  <p><a href="/">← Back to all tokens</a></p>
+</Layout>

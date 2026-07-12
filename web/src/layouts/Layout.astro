@@ -1,0 +1,31 @@
+---
+interface Props {
+  title?: string
+}
+const {title = 'test-astro-sanity'} = Astro.props
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  /* Minimal reset — the Webflow export had no site-specific styles */
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+    padding: 2rem;
+  }
+  a {
+    color: inherit;
+  }
+</style>

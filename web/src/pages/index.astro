@@ -1,0 +1,23 @@
+---
+import Layout from '../layouts/Layout.astro'
+import {getTokens} from '../lib/sanity'
+
+const tokens = await getTokens()
+---
+
+<Layout>
+  <div>test</div>
+  {
+    tokens.length > 0 ? (
+      <ul role="list">
+        {tokens.map((token) => (
+          <li>
+            <a href={`/tokens/${token.slug.current}/`}>{token.name}</a>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <div>No items found.</div>
+    )
+  }
+</Layout>

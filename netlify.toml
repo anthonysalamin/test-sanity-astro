@@ -1,0 +1,6 @@
+# Netlify builds only the Astro app; the Studio is deployed separately
+# via `sanity deploy` (free hosting on *.sanity.studio).
+[build]
+  base = "web"
+  command = "npm run build"
+  publish = "dist"
