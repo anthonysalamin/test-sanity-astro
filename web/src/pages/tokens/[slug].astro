@@ -13,7 +13,7 @@ export async function getStaticPaths() {
 const {token} = Astro.props
 ---
 
-{/* The Webflow detail_tokens.html body was empty; render the token name as a minimal binding. */}
-<Layout title={token.name}>
-  <div>{token.name}</div>
-</Layout>
+{/* Mirrors webflow/detail_tokens.html, whose body is empty (no elements were
+    added to the template in the Designer). Add bindings here when the Webflow
+    template gains content. */}
+<Layout title={token.name} />

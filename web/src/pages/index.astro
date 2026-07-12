@@ -6,14 +6,16 @@ const tokens = await getTokens()
 ---
 
 <Layout>
-  <div>test</div>
+  <h1>test</h1>
   <div class="w-dyn-list">
     {
       tokens.length > 0 ? (
         <div role="list" class="w-dyn-items">
           {tokens.map((token) => (
-            <div role="listitem" class="w-dyn-item">
+            <div role="listitem" class="collection-item w-dyn-item">
               <div>{token.name}</div>
+              <img src={token.imageUrl} loading="lazy" alt="" class="image" />
+              <div>{token.author?.name}</div>
             </div>
           ))}
         </div>

@@ -2,8 +2,7 @@ import {defineField, defineType} from 'sanity'
 
 /**
  * Token — mirrors the Webflow "Tokens" collection.
- * Webflow's export only contained the built-in fields (Name, Slug);
- * add more fields here as the collection grows.
+ * Fields: Name, Slug (built-in), image (Image), author (Reference → Authors).
  */
 export const token = defineType({
   name: 'token',
@@ -23,8 +22,19 @@ export const token = defineType({
       options: {source: 'name', maxLength: 96},
       validation: (rule) => rule.required(),
     }),
+    defineField({
+      name: 'image',
+      title: 'Image',
+      type: 'image',
+    }),
+    defineField({
+      name: 'author',
+      title: 'Author',
+      type: 'reference',
+      to: [{type: 'author'}],
+    }),
   ],
   preview: {
-    select: {title: 'name', subtitle: 'slug.current'},
+    select: {title: 'name', subtitle: 'slug.current', media: 'image'},
   },
 })

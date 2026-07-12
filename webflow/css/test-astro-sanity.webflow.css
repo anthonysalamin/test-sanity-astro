@@ -1,3 +1,11 @@
+.image {
+  width: 32px;
+}
 
+.collection-item {
+  justify-content: flex-start;
+  align-items: center;
+  display: flex;
+}
 
 

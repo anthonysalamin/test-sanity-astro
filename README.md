@@ -24,10 +24,20 @@ npx -y sanity@latest login   # or: cd studio && npx sanity login
 
 ```bash
 cd studio
-npx sanity dataset import ../migration/tokens.ndjson production
+npx sanity dataset import ../migration/authors.ndjson --dataset production   # referenced collection first
+npx sanity dataset import ../migration/tokens.ndjson --dataset production    # downloads + re-hosts images
+# add --replace when re-importing documents that already exist in the dataset
 ```
 
-This creates the two `token` documents (btc, eth). Verify at http://localhost:3333 after `npm run dev` in `studio/`.
+Order matters: tokens reference authors, so authors import first. The token import also downloads each image from Webflow's CDN and re-hosts it on Sanity (Webflow's CDN dies when the subscription ends). Verify at http://localhost:3333 after `npm run dev` in `studio/`.
+
+To regenerate the NDJSON after a CSV changes:
+
+```bash
+node migration/csv-to-ndjson.mjs "csv/<authors>.csv" author > migration/authors.ndjson
+node migration/csv-to-ndjson.mjs "csv/<tokens>.csv" token \
+  --image image --ref "author=author=csv/<authors>.csv" > migration/tokens.ndjson
+```
 
 ## 3. Run locally
 

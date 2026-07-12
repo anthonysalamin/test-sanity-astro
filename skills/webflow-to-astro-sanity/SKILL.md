@@ -100,20 +100,28 @@ Ignore Webflow's Collection ID / Locale ID / Archived / Draft columns; use Item 
 Use the bundled converter (`scripts/csv-to-ndjson.mjs`, dependency-free Node) rather than converting by hand — once per file in `csv/`:
 
 ```bash
+# simple collection (built-in fields + plain text)
 node scripts/csv-to-ndjson.mjs "csv/<export>.csv" <sanityType> > migration/<collection>.ndjson
+
+# collection with an image column and a reference column
+node scripts/csv-to-ndjson.mjs "csv/<tokens>.csv" token \
+  --image image \
+  --ref "author=author=csv/<authors>.csv" > migration/tokens.ndjson
 ```
 
-It parses the Webflow CSV (RFC 4180, quoted fields), derives `_id` from the Item ID column, maps Name/Slug to the built-in fields, drops Webflow metadata columns, skips Archived/Draft rows, and exports any custom column as a camelCased string field (warning on stderr that rich text, images, and references need manual mapping). Output format, one JSON object per line:
+It parses the Webflow CSV (RFC 4180, quoted fields), derives `_id` from the Item ID column, maps Name/Slug to the built-in fields, drops Webflow metadata columns, skips Archived/Draft rows, and exports remaining columns as camelCased string fields. Two flags handle the non-string field types:
 
-```json
-{"_id":"token-<WebflowItemID>","_type":"token","name":"btc","slug":{"_type":"slug","current":"btc"}}
-```
+- `--image <column>` — Webflow exports image fields as URLs on `cdn.prod.website-files.com`. **That CDN disappears when the Webflow subscription ends**, so the images must be re-hosted: the flag emits `{"_type":"image","_sanityAsset":"image@<url>"}` and `sanity dataset import` downloads each file and stores it in Sanity's asset store.
+- `--ref <column>=<targetType>=<targetCsv>` — Webflow exports reference fields as the target item's **slug**, not its ID. The flag resolves slug → Item ID via the referenced collection's CSV and emits `{"_type":"reference","_ref":"<type>-<itemId>"}`. Multi-reference columns (semicolon-separated slugs) become an array of keyed references. Unresolved slugs print a WARNING on stderr — fix them before importing.
 
-- Derive `_id` from the Webflow Item ID → idempotent re-imports (no duplicates).
+Rules and gotchas:
+
+- `_id` derived from the Webflow Item ID → idempotent re-imports (no duplicates).
 - Slugs must be objects: `{"_type":"slug","current":"..."}`.
-- References: import referenced collections first or use `--replace`; reference values are `{"_type":"reference","_ref":"<target-_id>"}`.
-- Rich text must be converted to Portable Text blocks; images need `sanity upload` or the import's asset support (`image` fields referencing local files via `_sanityAsset`).
+- **Import order matters with references:** import referenced collections first (`authors.ndjson` before `tokens.ndjson`) — a strong reference to a missing document fails the import.
+- Rich text still needs manual conversion to Portable Text blocks.
 - Validate with `jq -c . file.ndjson` before handing off.
+- Documents created manually in the Studio have random `_id`s; if the same item also arrives via CSV import, you get a duplicate. Delete the Studio-created copy.
 
 ## Step 6 — Commands the USER must run locally (require their credentials)
 
@@ -125,7 +133,10 @@ cd studio && npm install && npx sanity login
 # account and the import fails with a permissions error on the project.
 # Fix: npx sanity logout, retry with the right provider.
 
-npx sanity dataset import ../migration/<collection>.ndjson production   # once per collection
+npx sanity dataset import ../migration/<collection>.ndjson --dataset production
+# once per collection — referenced collections FIRST (e.g. authors before tokens)
+# Re-importing docs that already exist? Add --replace (default mode is
+# create-only and fails the whole batch with "Document by ID ... already exists").
 npm run dev        # Studio at localhost:3333 — accept the CORS origin prompt
 cd ../web && npm install && npm run dev   # site at localhost:4321
 ```
@@ -173,7 +184,10 @@ The deployed Studio is the customer-facing CMS (the equivalent of Webflow's Edit
 | Site renders "wrong" vs Webflow | Exported CSS not copied from `webflow/css/`, wrong stylesheet order, or "improved" markup (`ul`, padding, links). Mirror the export exactly. |
 | `sanity dataset import` → permission error | Logged into wrong Sanity account (different OAuth provider). `npx sanity logout` + retry. |
 | Build works locally, empty list on Netlify | Content not published (drafts aren't visible to unauthenticated reads) or wrong dataset name. |
-| Duplicate documents after re-import | Random `_id`s. Always derive `_id` from Webflow Item ID. |
+| Duplicate documents after re-import | Random `_id`s. Always derive `_id` from Webflow Item ID; delete Studio-created copies of imported items. |
+| Import fails on a reference | Referenced collection not imported yet, or slug missing from the target CSV. Import targets first; heed converter WARNINGs. |
+| `Document by ID "..." already exists` | Import is create-only by default. Re-run with `--replace` to update existing documents (safe: same `_id`s = same items). |
+| Images broken months after migration | `<img>` still points at `cdn.prod.website-files.com` (dies with the Webflow subscription). Use `--image` so imports re-host assets on Sanity, and render `image.asset->url`. |
 | Stale content after publishing | Webhook not firing — check it targets the Netlify build hook URL and the right dataset. |
 | `npm error ENOENT ... package.json` at repo root | Commands run from the wrong folder — the monorepo root has no package. `cd web` or `cd studio` first; delete any stray root `package-lock.json` it created. |
 | Multi-line command pastes misfire (`git pushcd web`) | Terminal concatenated pasted lines. Paste one line at a time, or use `&&`-joined single lines. |

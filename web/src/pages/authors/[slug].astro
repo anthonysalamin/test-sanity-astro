@@ -1,0 +1,19 @@
+---
+import Layout from '../../layouts/Layout.astro'
+import {getAuthors} from '../../lib/sanity'
+
+export async function getStaticPaths() {
+  const authors = await getAuthors()
+  return authors.map((author) => ({
+    params: {slug: author.slug.current},
+    props: {author},
+  }))
+}
+
+const {author} = Astro.props
+---
+
+{/* Mirrors webflow/detail_author.html, whose body is empty (no elements were
+    added to the template in the Designer). Add bindings here when the Webflow
+    template gains content. */}
+<Layout title={author.name} />
