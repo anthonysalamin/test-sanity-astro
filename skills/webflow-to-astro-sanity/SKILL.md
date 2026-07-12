@@ -39,9 +39,11 @@ Keep the Studio standalone (do NOT embed in Astro). No root package.json needed.
 
 Writing files directly avoids `npm create sanity` (which requires interactive login). Files:
 
-- `studio/package.json` — scripts `dev/build/deploy` → `sanity dev/build/deploy`. Deps: `sanity`, `@sanity/vision`, `react`, `react-dom`, `styled-components`; devDeps `typescript`, `@types/react`. Pin known-good majors.
+- `studio/package.json` — scripts `dev/build/deploy` → `sanity dev/build/deploy`. Deps: `sanity`, `@sanity/vision`, `react`, `react-dom`, `styled-components`; devDeps `typescript`, `@types/react`.
+
+**Version policy: always use the latest stable major of every dependency.** Check with `npm view <pkg> version` at migration time (do not assume from memory — majors move fast) and set `^<latest-major>.0.0`. Then verify with a real `npm install` + build before handing off; if the latest major breaks the scaffold, fix the code to match the new API rather than pinning back.
 - `studio/sanity.config.ts` — `defineConfig` with `projectId`, `dataset`, `plugins: [structureTool(), visionTool()]`, `schema: {types: schemaTypes}`.
-- `studio/sanity.cli.ts` — `defineCliConfig` with same projectId/dataset.
+- `studio/sanity.cli.ts` — `defineCliConfig` with same projectId/dataset. If enabling auto-updates, use the nested form `deployment: {autoUpdates: true}` (top-level `autoUpdates` is deprecated and warns on every CLI run). After the first `sanity deploy`, add the printed `appId` under `deployment` too, so later deploys don't prompt.
 - `studio/schemaTypes/index.ts` + one file per collection.
 - `studio/tsconfig.json`, `studio/.gitignore` (`node_modules`, `dist`, `.sanity`, `.env*`).
 
@@ -67,7 +69,7 @@ Ignore Webflow's Collection ID / Locale ID / Archived / Draft columns; use Item 
 
 ## Step 4 — Scaffold the Astro app (static output)
 
-- `web/package.json` — deps: `astro`, `@sanity/client` only. No adapter needed: fully static output means Sanity is queried at build time only, and the Netlify webhook rebuild model handles freshness.
+- `web/package.json` — deps: `astro`, `@sanity/client` only (latest stable majors — see version policy in Step 3). No adapter needed: fully static output means Sanity is queried at build time only, and the Netlify webhook rebuild model handles freshness.
 - `web/astro.config.mjs` — `defineConfig({output: 'static'})`.
 - `web/src/lib/sanity.ts` — `createClient({projectId, dataset, apiVersion: '<today YYYY-MM-DD>', useCdn: true})` plus typed GROQ fetch helpers, e.g. `*[_type == "token"] | order(name asc) {_id, name, slug}`.
   - Ordering gotcha: Webflow lists show Designer-defined order; pick the GROQ `order()` that matches the live site.
@@ -134,6 +136,15 @@ Verify a build-time read works without a token: Sanity datasets are public-read 
 2. Netlify → Add new site → Import from Git. No env vars needed for public datasets.
 3. Studio hosting (free): `cd studio && npx sanity deploy` → `https://<name>.sanity.studio`.
 4. Rebuild-on-publish: Netlify → Build hooks → create hook, copy URL. Then sanity.io/manage → project → API → Webhooks → create: URL = build hook, dataset = production, trigger on create/update/delete, POST. Publishing in the Studio now rebuilds the site in ~1 min.
+
+## Step 8 — Hand off content editing to the customer
+
+The deployed Studio is the customer-facing CMS (the equivalent of Webflow's Editor). Customers never touch code, Cursor, or sanity.io/manage — they edit at the Studio URL.
+
+1. Deploy the Studio (if not done in Step 7): `cd studio && npx sanity deploy` → `https://<name>.sanity.studio`, hosted free by Sanity.
+2. Invite the customer: sanity.io/manage → project → **Members** → Invite by email with the **Editor** role (create/edit/publish content; no access to project settings, API tokens, or billing). Free tier includes up to 20 members.
+3. Customer workflow: open the Studio URL → log in → add/edit documents → **Publish** → the Sanity webhook triggers a Netlify rebuild → live site updates in ~1 min.
+4. Schema changes stay with the developer: add fields in `studio/schemaTypes/`, then `npx sanity deploy` again — editors see the new fields immediately. The code-defined schema is a guardrail: editors can only fill in the fields you shipped.
 
 ## Verification checklist
 

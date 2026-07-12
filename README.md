@@ -62,6 +62,16 @@ cd studio && npx sanity deploy   # choose a hostname → https://<name>.sanity.s
    - HTTP method: POST
 3. Publish a change in the Studio → Netlify rebuilds → site updates in ~1 min.
 
+## 7. Let a customer edit the CMS (no code, no Cursor)
+
+The deployed Studio is the customer-facing editor — like Webflow's Editor, but hosted at your own URL.
+
+1. Deploy it once: `cd studio && npx sanity deploy` → pick a hostname → `https://<name>.sanity.studio` (free Sanity hosting).
+2. Invite the customer at [sanity.io/manage](https://www.sanity.io/manage) → project **TEST SANITY** → **Members** → Invite, role **Editor** (can create/edit/publish content; cannot touch settings, tokens, or billing). Free tier: up to 20 members.
+3. Their workflow: open the Studio URL → log in → add/edit tokens → **Publish** → webhook rebuilds Netlify → live site updates in ~1 min.
+
+To add fields later: edit `studio/schemaTypes/token.ts`, run `npx sanity deploy` again — editors see the new fields immediately. Bulk imports still work anytime via `migration/csv-to-ndjson.mjs` + `npx sanity dataset import`.
+
 ## Recurring cost
 
 Sanity free tier + Netlify free tier + GitHub free = $0/month at this scale.
