@@ -33,7 +33,7 @@ root/
 └── README.md
 ```
 
-Keep the Studio standalone (do NOT embed in Astro). No root package.json needed.
+Keep the Studio standalone (do NOT embed in Astro). There is deliberately no root package.json — all `npm` commands must run inside `studio/` or `web/`. Running `npm install` at the root fails with ENOENT and can leave a stray root `package-lock.json`; delete it if it appears (it can confuse Netlify's dependency detection). Commit each app's own `package-lock.json` after installing — it pins the exact versions Netlify builds with.
 
 ## Step 3 — Scaffold the Studio by hand (no CLI, no auth needed)
 
@@ -163,3 +163,5 @@ The deployed Studio is the customer-facing CMS (the equivalent of Webflow's Edit
 | Build works locally, empty list on Netlify | Content not published (drafts aren't visible to unauthenticated reads) or wrong dataset name. |
 | Duplicate documents after re-import | Random `_id`s. Always derive `_id` from Webflow Item ID. |
 | Stale content after publishing | Webhook not firing — check it targets the Netlify build hook URL and the right dataset. |
+| `npm error ENOENT ... package.json` at repo root | Commands run from the wrong folder — the monorepo root has no package. `cd web` or `cd studio` first; delete any stray root `package-lock.json` it created. |
+| Multi-line command pastes misfire (`git pushcd web`) | Terminal concatenated pasted lines. Paste one line at a time, or use `&&`-joined single lines. |

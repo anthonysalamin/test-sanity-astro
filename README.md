@@ -9,6 +9,8 @@ Webflow → Astro + Sanity migration. Monorepo:
 └── netlify.toml
 ```
 
+> **Note:** there is no root `package.json` — always run `npm` commands *inside* `studio/` or `web/`. If an accidental root `npm install` creates a root `package-lock.json`, delete it. Commit the lockfiles inside `web/` and `studio/` whenever they change.
+
 ## 1. Install & log in (run once, on your machine)
 
 ```bash
