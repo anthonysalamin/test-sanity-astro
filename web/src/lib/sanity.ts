@@ -4,7 +4,8 @@ export const sanityClient = createClient({
   projectId: 'nk9wf9nw',
   dataset: 'production',
   apiVersion: '2026-07-01',
-  useCdn: true, // fine for build-time reads of published content
+  useCdn: false, // build-time only: always read fresh data, so webhook-triggered
+  // rebuilds never pick up a stale CDN cache of just-published content
 })
 
 export interface Author {

@@ -82,7 +82,7 @@ Ignore Webflow's Collection ID / Locale ID / Archived / Draft columns; use Item 
 
 - `web/package.json` — deps: `astro`, `@sanity/client` only (latest stable majors — see version policy in Step 3). No adapter needed: fully static output means Sanity is queried at build time only, and the Netlify webhook rebuild model handles freshness.
 - `web/astro.config.mjs` — `defineConfig({output: 'static'})`.
-- `web/src/lib/sanity.ts` — `createClient({projectId, dataset, apiVersion: '<today YYYY-MM-DD>', useCdn: true})` plus typed GROQ fetch helpers, e.g. `*[_type == "token"] | order(name asc) {_id, name, slug}`.
+- `web/src/lib/sanity.ts` — `createClient({projectId, dataset, apiVersion: '<today YYYY-MM-DD>', useCdn: false})` plus typed GROQ fetch helpers. `useCdn: false` matters: queries only run at build time, and a webhook-triggered rebuild that starts seconds after publishing must not read a stale CDN cache., e.g. `*[_type == "token"] | order(name asc) {_id, name, slug}`.
   - Ordering gotcha: Webflow lists show Designer-defined order; pick the GROQ `order()` that matches the live site.
 - `web/tsconfig.json` extends `astro/tsconfigs/strict`; `.gitignore`: `node_modules`, `dist`, `.astro`, `.env*`.
 
@@ -133,10 +133,12 @@ cd studio && npm install && npx sanity login
 # account and the import fails with a permissions error on the project.
 # Fix: npx sanity logout, retry with the right provider.
 
-npx sanity dataset import ../migration/<collection>.ndjson --dataset production
+npx sanity dataset import ../migration/<collection>.ndjson --dataset production --replace
 # once per collection — referenced collections FIRST (e.g. authors before tokens)
-# Re-importing docs that already exist? Add --replace (default mode is
-# create-only and fails the whole batch with "Document by ID ... already exists").
+# ALWAYS use --replace: our _ids derive from Webflow Item IDs, so it safely
+# creates missing docs and updates existing ones. Without it the import is
+# create-only and any re-run fails the whole batch with
+# "Document by ID ... already exists".
 npm run dev        # Studio at localhost:3333 — accept the CORS origin prompt
 cd ../web && npm install && npm run dev   # site at localhost:4321
 ```
@@ -184,9 +186,10 @@ The deployed Studio is the customer-facing CMS (the equivalent of Webflow's Edit
 | Site renders "wrong" vs Webflow | Exported CSS not copied from `webflow/css/`, wrong stylesheet order, or "improved" markup (`ul`, padding, links). Mirror the export exactly. |
 | `sanity dataset import` → permission error | Logged into wrong Sanity account (different OAuth provider). `npx sanity logout` + retry. |
 | Build works locally, empty list on Netlify | Content not published (drafts aren't visible to unauthenticated reads) or wrong dataset name. |
+| Site missing data the Studio clearly has | The deployed build is a snapshot taken before the content existed (e.g. code pushed before import finished). Trigger a rebuild; verify the Sanity→Netlify webhook exists so this self-heals. |
 | Duplicate documents after re-import | Random `_id`s. Always derive `_id` from Webflow Item ID; delete Studio-created copies of imported items. |
 | Import fails on a reference | Referenced collection not imported yet, or slug missing from the target CSV. Import targets first; heed converter WARNINGs. |
-| `Document by ID "..." already exists` | Import is create-only by default. Re-run with `--replace` to update existing documents (safe: same `_id`s = same items). |
+| `Document by ID "..." already exists` | `--replace` flag was omitted. Imports must always use `--replace` (safe: deterministic `_id`s mean same items). |
 | Images broken months after migration | `<img>` still points at `cdn.prod.website-files.com` (dies with the Webflow subscription). Use `--image` so imports re-host assets on Sanity, and render `image.asset->url`. |
 | Stale content after publishing | Webhook not firing — check it targets the Netlify build hook URL and the right dataset. |
 | `npm error ENOENT ... package.json` at repo root | Commands run from the wrong folder — the monorepo root has no package. `cd web` or `cd studio` first; delete any stray root `package-lock.json` it created. |

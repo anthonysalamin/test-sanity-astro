@@ -24,9 +24,10 @@ npx -y sanity@latest login   # or: cd studio && npx sanity login
 
 ```bash
 cd studio
-npx sanity dataset import ../migration/authors.ndjson --dataset production   # referenced collection first
-npx sanity dataset import ../migration/tokens.ndjson --dataset production    # downloads + re-hosts images
-# add --replace when re-importing documents that already exist in the dataset
+npx sanity dataset import ../migration/authors.ndjson --dataset production --replace   # referenced collection first
+npx sanity dataset import ../migration/tokens.ndjson --dataset production --replace    # downloads + re-hosts images
+# --replace is always safe here: _ids derive from Webflow Item IDs, so imports
+# create missing documents and update existing ones (idempotent re-runs)
 ```
 
 Order matters: tokens reference authors, so authors import first. The token import also downloads each image from Webflow's CDN and re-hosts it on Sanity (Webflow's CDN dies when the subscription ends). Verify at http://localhost:3333 after `npm run dev` in `studio/`.
