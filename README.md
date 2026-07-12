@@ -3,9 +3,10 @@
 Webflow → Astro + Sanity migration. Monorepo:
 
 ```
+├── webflow/    # (input) Webflow site export — permanent reference, never edited
+├── csv/        # (input) Webflow CMS exports, one CSV per collection
 ├── studio/     # Sanity Studio (project nk9wf9nw, dataset production)
 ├── web/        # Astro front end (fully static, reads Sanity at build time)
-├── csv/        # Source CMS exports from Webflow (one CSV per collection)
 ├── migration/  # csv-to-ndjson.mjs converter + NDJSON files for Sanity import
 └── netlify.toml
 ```

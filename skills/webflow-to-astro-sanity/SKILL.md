@@ -1,6 +1,6 @@
 ---
 name: webflow-to-astro-sanity
-description: Migrate a Webflow site with CMS collections to a pixel-perfect Astro front end backed by Sanity, hosted on GitHub, deployed on Netlify with webhook-triggered rebuilds. Use when the user wants to move off Webflow onto a code-owned Astro + Sanity stack, mentions "Webflow export", "Webflow CMS migration", or "rebuild Webflow in Astro".
+description: Migrate a Webflow site with CMS collections to a pixel-perfect Astro front end backed by Sanity, hosted on GitHub, deployed on Netlify with webhook-triggered rebuilds. Expects the repo to contain the Webflow exports (webflow/ folder + csv/ folder). Use when the user wants to move off Webflow onto a code-owned Astro + Sanity stack, mentions "Webflow export", "Webflow CMS migration", or "rebuild Webflow in Astro".
 ---
 
 # Webflow → Astro + Sanity migration
@@ -9,26 +9,35 @@ Converts a Webflow site export (+ CMS CSV exports) into a monorepo: Sanity Studi
 
 **Non-negotiable requirement: the Astro site must render pixel-perfect identical to the Webflow original.** This is achieved by reusing the export's own CSS files verbatim and reproducing its exact DOM structure (see Step 4). Never substitute custom styles, semantic-HTML rewrites, or added elements for what the export contains — visual parity beats markup elegance.
 
-## Required inputs
+## Expected repo layout (inputs)
 
-1. Webflow **site export** (zip): `index.html`, `detail_<collection>.html` per collection, `css/`, `js/`, `images/`.
-2. Webflow **CMS CSV export** per collection (Collection settings → Export).
-3. A Sanity project ID + dataset (user creates at sanity.io — free tier).
-
-## Step 1 — Analyze the export before writing anything
-
-- List every HTML page and read it. Detail pages named `detail_<collection>.html` are CMS template pages.
-- Check `css/<site-name>.webflow.css` — this is the ONLY site-specific stylesheet. `normalize.css` and `webflow.css` are framework files; the site's base look (Arial 14px/20px, #333, margin 0) comes from them, NOT from browser defaults.
-- Read the CSV header to enumerate CMS fields. Webflow always includes built-ins: Name, Slug, Collection ID, Locale ID, Item ID, Archived, Draft, Created/Updated/Published On. Everything after those is a custom field.
-
-## Step 2 — Monorepo layout
+The repo starts with the raw Webflow exports committed at the root:
 
 ```
 root/
-├── studio/       # Sanity Studio
-├── web/          # Astro app
-├── csv/          # Source CMS exports from Webflow (one CSV per collection)
-├── migration/    # csv-to-ndjson.mjs converter + NDJSON files for content import
+├── webflow/   # Webflow SITE export: the zip from Site settings → Export code,
+│              # or its unzipped contents (index.html, detail_*.html, css/, js/, images/)
+└── csv/       # Webflow CMS exports: one CSV per collection
+               # (Collection settings → Export)
+```
+
+**Step 0 — normalize the inputs.** If `webflow/` contains a zip, unzip it in place (`cd webflow && unzip *.zip`) so `index.html` and `css/` sit directly under `webflow/`. Keep these folders committed: they are the permanent source-of-truth reference for pixel-parity checks and future re-conversions. The user must also have a Sanity project ID + dataset (created free at sanity.io).
+
+## Step 1 — Analyze the export before writing anything
+
+- List every HTML page under `webflow/` and read each one. Detail pages named `detail_<collection>.html` are CMS template pages.
+- Check `webflow/css/<site-name>.webflow.css` — this is the ONLY site-specific stylesheet. `normalize.css` and `webflow.css` are framework files; the site's base look (Arial 14px/20px, #333, margin 0) comes from them, NOT from browser defaults.
+- Read every CSV header in `csv/` to enumerate collections and fields. Webflow always includes built-ins: Name, Slug, Collection ID, Locale ID, Item ID, Archived, Draft, Created/Updated/Published On. Everything after those is a custom field.
+
+## Step 2 — Target monorepo layout
+
+```
+root/
+├── webflow/      # (input) Webflow site export — keep committed, never edit
+├── csv/          # (input) CMS CSV exports — keep committed, never edit
+├── studio/       # (generated) Sanity Studio
+├── web/          # (generated) Astro app
+├── migration/    # (generated) csv-to-ndjson.mjs converter + NDJSON output
 ├── netlify.toml
 ├── .gitignore    # node_modules, .env*, .DS_Store
 └── README.md
@@ -43,9 +52,10 @@ Writing files directly avoids `npm create sanity` (which requires interactive lo
 - `studio/package.json` — scripts `dev/build/deploy` → `sanity dev/build/deploy`. Deps: `sanity`, `@sanity/vision`, `react`, `react-dom`, `styled-components`; devDeps `typescript`, `@types/react`.
 
 **Version policy: always use the latest stable major of every dependency.** Check with `npm view <pkg> version` at migration time (do not assume from memory — majors move fast) and set `^<latest-major>.0.0`. Then verify with a real `npm install` + build before handing off; if the latest major breaks the scaffold, fix the code to match the new API rather than pinning back.
+
 - `studio/sanity.config.ts` — `defineConfig` with `projectId`, `dataset`, `plugins: [structureTool(), visionTool()]`, `schema: {types: schemaTypes}`.
 - `studio/sanity.cli.ts` — `defineCliConfig` with same projectId/dataset. If enabling auto-updates, use the nested form `deployment: {autoUpdates: true}` (top-level `autoUpdates` is deprecated and warns on every CLI run). After the first `sanity deploy`, add the printed `appId` under `deployment` too, so later deploys don't prompt.
-- `studio/schemaTypes/index.ts` + one file per collection.
+- `studio/schemaTypes/index.ts` + one schema file per collection found in `csv/`.
 - `studio/tsconfig.json`, `studio/.gitignore` (`node_modules`, `dist`, `.sanity`, `.env*`).
 
 ### Webflow → Sanity field type mapping
@@ -78,19 +88,19 @@ Ignore Webflow's Collection ID / Locale ID / Archived / Draft columns; use Item 
 
 ### Pixel-perfect rules (this is what people get wrong)
 
-1. **Copy the exported assets untouched** into `web/public/` keeping identical paths: `css/`, `images/`, `js/webflow.js`.
+1. **Copy `webflow/css/`, `webflow/images/`, and `webflow/js/webflow.js` untouched** into `web/public/`, keeping identical relative paths (`/css/...`, `/images/...`, `/js/webflow.js`).
 2. **Mirror the exported `<head>` exactly** in a `Layout.astro`: same stylesheet order (`normalize.css` → `webflow.css` → site css), the inline `w-mod-js` touch-detection script (use `is:inline`), favicon + webclip links.
 3. **Mirror the body DOM exactly**, including Webflow classes: `w-dyn-list` > `w-dyn-items` (`role="list"`) > `w-dyn-item` (`role="listitem"`), and `w-dyn-empty` for the empty state. Do NOT "improve" markup: no `<ul>`/`<li>` (adds bullets/indentation), no added wrappers, no body padding, no custom resets, no `<a>` where Webflow rendered plain divs.
 4. Keep the jQuery CDN script + `/js/webflow.js` at the end of `<body>` (needed for Webflow interactions; harmless otherwise).
 5. Replace each CMS binding with the Sanity field; replace collection lists with a `.map()` over the fetched documents.
-6. Detail pages: one `web/src/pages/<collection>/[slug].astro` per collection using `getStaticPaths()` over all documents.
+6. Detail pages: one `web/src/pages/<collection>/[slug].astro` per `detail_<collection>.html`, using `getStaticPaths()` over all documents.
 
-## Step 5 — Convert CMS CSVs to NDJSON
+## Step 5 — Convert every CSV in csv/ to NDJSON
 
-Use the bundled converter (`scripts/csv-to-ndjson.mjs`, dependency-free Node) rather than converting by hand:
+Use the bundled converter (`scripts/csv-to-ndjson.mjs`, dependency-free Node) rather than converting by hand — once per file in `csv/`:
 
 ```bash
-node scripts/csv-to-ndjson.mjs csv/<webflow-export>.csv <sanityType> > migration/<collection>.ndjson
+node scripts/csv-to-ndjson.mjs "csv/<export>.csv" <sanityType> > migration/<collection>.ndjson
 ```
 
 It parses the Webflow CSV (RFC 4180, quoted fields), derives `_id` from the Item ID column, maps Name/Slug to the built-in fields, drops Webflow metadata columns, skips Archived/Draft rows, and exports any custom column as a camelCased string field (warning on stderr that rich text, images, and references need manual mapping). Output format, one JSON object per line:
@@ -115,7 +125,7 @@ cd studio && npm install && npx sanity login
 # account and the import fails with a permissions error on the project.
 # Fix: npx sanity logout, retry with the right provider.
 
-npx sanity dataset import ../migration/<collection>.ndjson production
+npx sanity dataset import ../migration/<collection>.ndjson production   # once per collection
 npm run dev        # Studio at localhost:3333 — accept the CORS origin prompt
 cd ../web && npm install && npm run dev   # site at localhost:4321
 ```
@@ -140,7 +150,7 @@ Verify a build-time read works without a token: Sanity datasets are public-read 
 
 ## Step 8 — Hand off content editing to the customer
 
-The deployed Studio is the customer-facing CMS (the equivalent of Webflow's Editor). Customers never touch code, Cursor, or sanity.io/manage — they edit at the Studio URL.
+The deployed Studio is the customer-facing CMS (the equivalent of Webflow's Editor). Customers never touch code or sanity.io/manage — they edit at the Studio URL.
 
 1. Deploy the Studio (if not done in Step 7): `cd studio && npx sanity deploy` → `https://<name>.sanity.studio`, hosted free by Sanity.
 2. Invite the customer: sanity.io/manage → project → **Members** → Invite by email with the **Editor** role (create/edit/publish content; no access to project settings, API tokens, or billing). Free tier includes up to 20 members.
@@ -149,8 +159,9 @@ The deployed Studio is the customer-facing CMS (the equivalent of Webflow's Edit
 
 ## Verification checklist
 
+- [ ] `webflow/` and `csv/` are committed and untouched (inputs are the permanent reference).
 - [ ] `npm install` and `astro build` succeed in `web/` (build fetches Sanity, so run after import).
-- [ ] Rendered page DOM matches the Webflow export byte-for-byte apart from CMS bindings (diff `view-source` if in doubt).
+- [ ] Rendered page DOM matches `webflow/<page>.html` byte-for-byte apart from CMS bindings (diff `view-source` if in doubt).
 - [ ] List ordering matches the live Webflow site.
 - [ ] NDJSON is valid (`jq -c .`) and re-import is idempotent (stable `_id`s).
 - [ ] Publishing a Studio change triggers a Netlify deploy.
@@ -159,7 +170,7 @@ The deployed Studio is the customer-facing CMS (the equivalent of Webflow's Edit
 
 | Symptom | Cause / fix |
 |---|---|
-| Site renders "wrong" vs Webflow | Exported CSS not copied, wrong stylesheet order, or "improved" markup (`ul`, padding, links). Mirror the export exactly. |
+| Site renders "wrong" vs Webflow | Exported CSS not copied from `webflow/css/`, wrong stylesheet order, or "improved" markup (`ul`, padding, links). Mirror the export exactly. |
 | `sanity dataset import` → permission error | Logged into wrong Sanity account (different OAuth provider). `npx sanity logout` + retry. |
 | Build works locally, empty list on Netlify | Content not published (drafts aren't visible to unauthenticated reads) or wrong dataset name. |
 | Duplicate documents after re-import | Random `_id`s. Always derive `_id` from Webflow Item ID. |
