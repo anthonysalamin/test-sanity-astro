@@ -7,17 +7,21 @@ const tokens = await getTokens()
 
 <Layout>
   <div>test</div>
-  {
-    tokens.length > 0 ? (
-      <ul role="list">
-        {tokens.map((token) => (
-          <li>
-            <a href={`/tokens/${token.slug.current}/`}>{token.name}</a>
-          </li>
-        ))}
-      </ul>
-    ) : (
-      <div>No items found.</div>
-    )
-  }
+  <div class="w-dyn-list">
+    {
+      tokens.length > 0 ? (
+        <div role="list" class="w-dyn-items">
+          {tokens.map((token) => (
+            <div role="listitem" class="w-dyn-item">
+              <div>{token.name}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div class="w-dyn-empty">
+          <div>No items found.</div>
+        </div>
+      )
+    }
+  </div>
 </Layout>

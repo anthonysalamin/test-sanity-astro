@@ -13,7 +13,7 @@ export async function getStaticPaths() {
 const {token} = Astro.props
 ---
 
+{/* The Webflow detail_tokens.html body was empty; render the token name as a minimal binding. */}
 <Layout title={token.name}>
-  <h1>{token.name}</h1>
-  <p><a href="/">← Back to all tokens</a></p>
+  <div>{token.name}</div>
 </Layout>
