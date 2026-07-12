@@ -7,6 +7,8 @@ description: Migrate a Webflow site with CMS collections to a pixel-perfect Astr
 
 Converts a Webflow site export (+ CMS CSV exports) into a monorepo: Sanity Studio (`studio/`), static Astro app (`web/`), deployed on Netlify, rebuilt via Sanity webhook. Target recurring cost: $0 (all free tiers).
 
+**Non-negotiable requirement: the Astro site must render pixel-perfect identical to the Webflow original.** This is achieved by reusing the export's own CSS files verbatim and reproducing its exact DOM structure (see Step 4). Never substitute custom styles, semantic-HTML rewrites, or added elements for what the export contains — visual parity beats markup elegance.
+
 ## Required inputs
 
 1. Webflow **site export** (zip): `index.html`, `detail_<collection>.html` per collection, `css/`, `js/`, `images/`.
@@ -82,7 +84,13 @@ Ignore Webflow's Collection ID / Locale ID / Archived / Draft columns; use Item 
 
 ## Step 5 — Convert CMS CSVs to NDJSON
 
-One JSON object per line in `migration/<collection>.ndjson`:
+Use the bundled converter (`scripts/csv-to-ndjson.mjs`, dependency-free Node) rather than converting by hand:
+
+```bash
+node scripts/csv-to-ndjson.mjs <webflow-export.csv> <sanityType> > migration/<collection>.ndjson
+```
+
+It parses the Webflow CSV (RFC 4180, quoted fields), derives `_id` from the Item ID column, maps Name/Slug to the built-in fields, drops Webflow metadata columns, skips Archived/Draft rows, and exports any custom column as a camelCased string field (warning on stderr that rich text, images, and references need manual mapping). Output format, one JSON object per line:
 
 ```json
 {"_id":"token-<WebflowItemID>","_type":"token","name":"btc","slug":{"_type":"slug","current":"btc"}}
